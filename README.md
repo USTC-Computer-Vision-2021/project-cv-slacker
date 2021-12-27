@@ -15,3 +15,6 @@
 暂定想法：基于图像拼接的技术实现视频的专场
 
 - 两个视频拼接处可能有一定的相似之处，如纹理等等，基于此进行转场。
+
+## 图像拼接
+[参考链接](https://datahacker.rs/005-how-to-create-a-panorama-image-using-opencv-with-python/)
