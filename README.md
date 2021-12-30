@@ -17,4 +17,7 @@
 - 两个视频拼接处可能有一定的相似之处，如纹理等等，基于此进行转场。
 
 ## 图像拼接
-[参考链接](https://datahacker.rs/005-how-to-create-a-panorama-image-using-opencv-with-python/)
+[参考链接-综述](https://datahacker.rs/005-how-to-create-a-panorama-image-using-opencv-with-python/)
+[特征检测](https://www.cnblogs.com/multhree/p/11296945.html#sift%E7%89%B9%E5%BE%81%E7%AE%80%E4%BB%8B)
+[RANSAC](https://zhuanlan.zhihu.com/p/36301702)
+
