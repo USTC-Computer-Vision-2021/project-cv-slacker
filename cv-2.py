@@ -1,11 +1,11 @@
 import sys
 import cv2
 import numpy as np
+from matplotlib import pyplot as plt
 
 # input video
 # parameter: t0,[t1],t2,t3
 # output: new video
-
 
 # steps:
 # 1.cut video1 and video2 , 提取两组帧：
@@ -25,10 +25,10 @@ import numpy as np
 # 关键帧提取以提高处理速度
 # 声音？
 
-video1 = cv2.VideoCapture("1.mp4")
-video2 = cv2.VideoCapture("2.mp4")
+video1 = cv2.VideoCapture("01.mp4")
+video2 = cv2.VideoCapture("02.mp4")
 
-t1 = 5.8 # unit: second
+t1 = 3.3 # unit: second
 overallcontrol = 5
 
 fps_Origin = video1.get(cv2.CAP_PROP_FPS) # 原视频的帧率
@@ -72,15 +72,15 @@ def generateHMatrix(imgs1, imgs2):
     img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
     # Create our ORB detector and detect keypoints and descriptors
-    orb = cv2.ORB_create(nfeatures=2000)
-    # orb = cv2.SIFT_create(nfeatures=2000)
+    # orb = cv2.ORB_create(nfeatures=2000)
+    orb = cv2.SIFT_create(nfeatures=2000)
     # Find the key points and descriptors with ORB
     keypoints1, descriptors1 = orb.detectAndCompute(img1, None)
     keypoints2, descriptors2 = orb.detectAndCompute(img2, None)
     # Create a BFMatcher object.
     # It will find all of the matching keypoints on two images
-    bf = cv2.BFMatcher_create(cv2.NORM_HAMMING)
-    # bf = cv2.BFMatcher_create(cv2.NORM_L1)
+    # bf = cv2.BFMatcher_create(cv2.NORM_HAMMING)
+    bf = cv2.BFMatcher_create(cv2.NORM_L1)
     # Find matching points
     matches = bf.knnMatch(descriptors1, descriptors2,k=2)
     all_matches = []
@@ -107,7 +107,7 @@ def generateHMatrix(imgs1, imgs2):
 
 def smoothHMatrix(HMatrixArrey):
   return HMatrixArrey
-
+# """
 def warpImages(img1, img2, H, a):
 
   I = np.float32([[1,0,0],[0,1,0],[0,0,1]])
@@ -168,7 +168,6 @@ def polygon_overlap(shape, poly1, poly2):
   return overlap_mask, overlap_contour
 
 def process_output_image(output_img, output_img2, poly1, poly2, a):
-#   output = np.zeros_like(output_img)
   overlap, contour = polygon_overlap(output_img.shape, poly1, poly2)
   output = output_img + output_img2
   weight_sum = a * output_img + (1 - a) * output_img2
@@ -187,7 +186,64 @@ def process_output_image(output_img, output_img2, poly1, poly2, a):
   output[contour_img2_mask & ~contour_img1_mask] = output_img2[contour_img2_mask & ~contour_img1_mask]
   output[contour_img2_mask & contour_img1_mask] = output_img[contour_img2_mask & contour_img1_mask]
   return output
+# """
+"""
+def warpImages(img1, img2, H, a):
 
+  I = np.float32([[1,0,0],[0,1,0],[0,0,1]])
+  A1 = I + a * ( np.linalg.inv(H) - I )
+  A2 = H + a * ( I - H )
+
+  rows1, cols1 = img1.shape[:2]
+  rows2, cols2 = img2.shape[:2]
+
+  temp_points_1 = np.float32([[0,0], [0,rows1], [cols1,rows1], [cols1,0]]).reshape(-1,1,2)
+  temp_points_2 = np.float32([[0,0], [0,rows2], [cols2,rows2], [cols2,0]]).reshape(-1,1,2)
+
+  # When we have established a homography we need to warp perspective
+  # Change field of view
+  list_of_points_1 = cv2.perspectiveTransform(temp_points_1, A1)
+  list_of_points_2 = cv2.perspectiveTransform(temp_points_2, A2)
+
+  list_of_points = np.concatenate((list_of_points_1,list_of_points_2), axis=0)
+
+  [x_min, y_min] = np.int32(list_of_points.min(axis=0).ravel() - 0.5)
+  [x_max, y_max] = np.int32(list_of_points.max(axis=0).ravel() + 0.5)
+  
+  translation_dist = [-x_min,-y_min]
+  
+  H_translation = np.array([[1, 0, translation_dist[0]], [0, 1, translation_dist[1]], [0, 0, 1]])
+
+  output_img = cv2.warpPerspective(img2, H_translation.dot(A2), (x_max-x_min, y_max-y_min))
+  output_img2 = cv2.warpPerspective(img1, H_translation.dot(A1), (x_max-x_min, y_max-y_min))
+
+  output_img_final = process_output_image2(output_img,output_img2,a)
+
+  return output_img_final
+
+def process_output_image(output_img,output_img2,a):
+  output = np.zeros_like(output_img)
+  for i in range(output_img.shape[0]):
+    for j in range(output_img.shape[1]):
+      if((output_img[i][j]==0).all()): # 此像素格为0
+        k1=0
+      else:
+        k1=1
+      if((output_img2[i][j]==0).all()):
+        k2=0
+      else:
+        k2=1
+      if(k1==0 and k2==0):
+        output[i][j]=0
+      elif(k1!=0 and k2!=0):
+        output[i][j]=(a)*output_img[i][j]+(1-a)*output_img2[i][j]
+      elif(k1!=0 and k2==0):
+        output[i][j]=output_img[i][j]
+      else:
+        output[i][j]=output_img2[i][j]
+
+  return output
+"""
 def getCenters(H_arrey):
   length = len(H_arrey)
   a = 0
@@ -199,29 +255,52 @@ def getCenters(H_arrey):
     I = np.float32([[1,0,0],[0,1,0],[0,0,1]])
     A1 = I + a * ( np.linalg.inv(H) - I )
     A2 = H + a * ( I - H )
-    temp_point = np.float32([[[width/2, height/2]]])
+    temp_point = np.float32([[[ height/2, width/2]]])
     center1 = cv2.perspectiveTransform(temp_point, A1)
     center2 = cv2.perspectiveTransform(temp_point, A2)
-    center = a*center1+(1-a)*center2
+    center = (1-a)*center1+(a)*center2
     centers.append(center)
     mask1 = np.ones((int(height), int(width), 3), dtype=np.uint8) * 255
-    mask2 = mask1
+    mask2 = np.ones((int(height), int(width), 3), dtype=np.uint8) * 255
+    # mask2 = mask1
     mask0 = warpImages(mask1, mask2, H, a)
-    _, mask = cv2.threshold(mask0, 127, 255, cv2.THRESH_BINARY)
+    cv2.imwrite("test_0.png",mask0)
+    _, mask = cv2.threshold(mask0.astype(np.uint8), 127, 255, cv2.THRESH_BINARY)
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
     output_height=2
     while 1: 
       output_height = output_height + 2
-      temp = cutimg(mask, np.squeeze(centers[i]), output_height)
-      if np.min(temp) == 0:
+      success, temp = cutimg(mask, np.squeeze(centers[i]), output_height)
+      if (not success) or (np.min(temp) == 0):
         break
     output_heights.append(output_height)
   return centers, output_heights
-  
+
+def process_output_image2(output_img,output_img2,a):
+  # _, img1 = cv2.threshold(output_img.astype(np.uint8), 1, 255, cv2.THRESH_BINARY)
+  # _, img2 = cv2.threshold(output_img.astype(np.uint8), 1, 255, cv2.THRESH_BINARY)
+  # img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+  # img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+  bigpic = np.ones((output_img.shape[0], output_img.shape[1], 3), dtype=np.uint8) * 255
+  output = np.zeros_like(output_img)
+  overlap = np.bool8(output_img) & np.bool8(output_img2)
+  each = (np.bool8(output_img) | np.bool8(output_img2)) ^ overlap
+  output = each * output_img + each * output_img2
+  output = output + overlap*((1-a)*output_img+(a)*output_img2)
+
+  cv2.imwrite("overlap.png",overlap*bigpic)
+  cv2.imwrite("each.png",each*bigpic)
+  return output
+
+
 def cutimg(inputimg, center0, height0):
   width0 = height0 / height * width
-  return inputimg[int(center0[1]-height0/2) : int(center0[1]+height0/2), 
-                  int(center0[0]-width0/2) : int(center0[0]+width0/2)]
+  if(int(center0[0]-height0/2) < 0 or int(center0[1]-width0/2) < 0):
+    return 0, -1
+  if(int(center0[0]+height0/2) > inputimg.shape[0] or int(center0[1]+width0/2) > inputimg.shape[1]):
+    return 0, -1
+  # return inputimg[int(center0[0]-width0/2) : int(center0[0]+width0/2), int(center0[1]-height0/2) : int(center0[1]+height0/2)]
+  return 1, inputimg[int(center0[0]-height0/2) : int(center0[0]+height0/2), int(center0[1]-width0/2) : int(center0[1]+width0/2)]
 
 def smoothHeights(heights):
   return heights
@@ -242,9 +321,10 @@ for i in range(deltanum):
   img1 = imgs10[i]
   img2 = imgs20[i]
   temp = warpImages(img1, img2, H_arrey_final[i], i/deltanum)
-  if i < 10:
+  if i % 10 == 0:
     cv2.imwrite("temp/temp_{}.jpg".format(i), temp)
-  outputimgs.append(cutimg(temp, np.squeeze(centers[i]),final_heights[i]))
+  testtest = final_heights[i]*overallcontrol
+  outputimgs.append(cutimg(temp, np.squeeze(centers[i]*overallcontrol),final_heights[i]*overallcontrol)[1])
 
 # final step: write to file
 videoWriter =cv2.VideoWriter('videoOut.avi', cv2.VideoWriter_fourcc('X','V','I','D'), fps, (int(width_origin), int(height_origin)))
