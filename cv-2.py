@@ -73,12 +73,14 @@ def generateHMatrix(imgs1, imgs2):
     img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
     # Create our ORB detector and detect keypoints and descriptors
     orb = cv2.ORB_create(nfeatures=2000)
+    # orb = cv2.SIFT_create(nfeatures=2000)
     # Find the key points and descriptors with ORB
     keypoints1, descriptors1 = orb.detectAndCompute(img1, None)
     keypoints2, descriptors2 = orb.detectAndCompute(img2, None)
     # Create a BFMatcher object.
     # It will find all of the matching keypoints on two images
     bf = cv2.BFMatcher_create(cv2.NORM_HAMMING)
+    # bf = cv2.BFMatcher_create(cv2.NORM_L1)
     # Find matching points
     matches = bf.knnMatch(descriptors1, descriptors2,k=2)
     all_matches = []
@@ -154,18 +156,36 @@ def draw_polygon(ImShape,Polygon,Color):
     return Im
 
 def polygon_overlap(shape, poly1, poly2):
-    im1 = draw_polygon(shape, poly1, (122, 122, 122))
-    im2 = draw_polygon(shape, poly2, (133, 133, 133))
-    im = im1 + im2
-    im_sum = np.sum(im, axis=-1)
-    overlap_mask = (im_sum == 255 * 3)
-    return overlap_mask
+  im1 = draw_polygon(shape, poly1, (122, 122, 122))
+  im2 = draw_polygon(shape, poly2, (133, 133, 133))
+  im = im1 + im2
+  im_sum = np.sum(im, axis=-1)
+  overlap_mask = (im_sum == 255 * 3)
+  overlap_img = np.zeros_like(im1)
+  overlap_img[overlap_mask] = 255
+  overlap_img = cv2.cvtColor(overlap_img, cv2.COLOR_RGB2GRAY)
+  overlap_contour, hierarchy= cv2.findContours(overlap_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+  return overlap_mask, overlap_contour
 
 def process_output_image(output_img, output_img2, poly1, poly2, a):
-  overlap = polygon_overlap(output_img.shape, poly1, poly2)
+#   output = np.zeros_like(output_img)
+  overlap, contour = polygon_overlap(output_img.shape, poly1, poly2)
   output = output_img + output_img2
   weight_sum = a * output_img + (1 - a) * output_img2
   output[overlap] = weight_sum[overlap]
+  contour_img = np.zeros_like(output_img)
+  cv2.drawContours(contour_img, contour, -1, (255,255,255), 1)
+  contour_img = cv2.cvtColor(contour_img, cv2.COLOR_RGB2GRAY)
+  contour_mask = (contour_img == 255)
+  contour_img1 = np.zeros_like(output_img)
+  contour_img1[contour_mask] = output_img[contour_mask]
+  contour_img1_mask = (np.sum(contour_img1, axis=-1) != 0)
+  contour_img2 = np.zeros_like(output_img2)
+  contour_img2[contour_mask] = output_img2[contour_mask]
+  contour_img2_mask = (np.sum(contour_img2, axis=-1) != 0)
+  output[contour_img1_mask & ~contour_img2_mask] = output_img[contour_img1_mask & ~contour_img2_mask]
+  output[contour_img2_mask & ~contour_img1_mask] = output_img2[contour_img2_mask & ~contour_img1_mask]
+  output[contour_img2_mask & contour_img1_mask] = output_img[contour_img2_mask & contour_img1_mask]
   return output
 
 def getCenters(H_arrey):
