@@ -38,8 +38,8 @@ fps = fps_Origin # 需要保存视频的帧率
 # size_Origin = (vedio1.get(cv2.CAP_PROP_FRAME_WIDTH), vedio1.get(cv2.CAP_PROP_FRAME_HEIGHT)) # 原视频的大小
 # size = size_Origin # 需要保存视频的大小
 
-width = vedio1.get(cv2.CAP_PROP_FRAME_WIDTH)# overallcontrol
-height = vedio1.get(cv2.CAP_PROP_FRAME_HEIGHT)# overallcontrol
+width = vedio1.get(cv2.CAP_PROP_FRAME_WIDTH) // overallcontrol
+height = vedio1.get(cv2.CAP_PROP_FRAME_HEIGHT) // overallcontrol
 videoWriter =cv2.VideoWriter('videoOut.avi', cv2.VideoWriter_fourcc('X','V','I','D'), fps, (int(width), int(height)))
 
 
@@ -68,7 +68,7 @@ for i in range(0,deltanum-1):
     
 def generateHMatrix(imgs1, imgs2):
     H_Arrey = []
-    for i in range(0, len(imgs1)):
+    for i in range(len(imgs1)):
         img1 = imgs1[i]
         img2 = imgs2[i]
         img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
@@ -93,16 +93,16 @@ def generateHMatrix(imgs1, imgs2):
                 good.append(m)
 
             # Set minimum match condition
-            MIN_MATCH_COUNT = 5
+        MIN_MATCH_COUNT = 5
 
-            if len(good) > MIN_MATCH_COUNT:
-                # Convert keypoints to an argument for findHomography
-                src_pts = np.float32([ keypoints1[m.queryIdx].pt for m in good]).reshape(-1,1,2)
-                dst_pts = np.float32([ keypoints2[m.trainIdx].pt for m in good]).reshape(-1,1,2)
+        if len(good) > MIN_MATCH_COUNT:
+            # Convert keypoints to an argument for findHomography
+            src_pts = np.float32([ keypoints1[m.queryIdx].pt for m in good]).reshape(-1,1,2)
+            dst_pts = np.float32([ keypoints2[m.trainIdx].pt for m in good]).reshape(-1,1,2)
 
-                # Establish a homography
-                M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-                H_Arrey.append(M)
+            # Establish a homography
+            M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+            H_Arrey.append(M)
     return H_Arrey
 
 def smoothHMatrix(HMatrixArrey):
@@ -156,20 +156,20 @@ def draw_polygon(ImShape,Polygon,Color):
     return Im
 
 def polygon_overlap(shape, poly1, poly2):
-  im1 = draw_polygon(shape, poly1, (122, 122, 122))
-  im2 = draw_polygon(shape, poly2, (133, 133, 133))
-  im = im1 + im2
-  im_sum = np.sum(im, axis=-1)
-  overlap_mask = (im_sum == 255 * 3)
-  return overlap_mask
+    im1 = draw_polygon(shape, poly1, (122, 122, 122))
+    im2 = draw_polygon(shape, poly2, (133, 133, 133))
+    im = im1 + im2
+    im_sum = np.sum(im, axis=-1)
+    overlap_mask = (im_sum == 255 * 3)
+    return overlap_mask
 
 def process_output_image(output_img, output_img2, poly1, poly2, a):
 #   output = np.zeros_like(output_img)
-  overlap = polygon_overlap(output_img.shape, poly1, poly2)
-  output = output_img + output_img2
-  weight_sum = a * output_img + (1 - a) * output_img2
-  output[overlap] = weight_sum[overlap]
-  return output
+    overlap = polygon_overlap(output_img.shape, poly1, poly2)
+    output = output_img + output_img2
+    weight_sum = a * output_img + (1 - a) * output_img2
+    output[overlap] = weight_sum[overlap]
+    return output
 
 def getCenters(H_arrey):
     return H_arrey, H_arrey
