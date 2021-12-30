@@ -2,15 +2,13 @@ import sys
 import cv2
 import numpy as np
 
-# input vedio
+# input video
 # parameter: t0,[t1],t2,t3
-# output: new VisibleDeprecationWarning
-
-
+# output: new video
 
 
 # steps:
-# 1.cut vedio1 and vedio2 , 提取两组帧：
+# 1.cut video1 and video2 , 提取两组帧：
 # frame10
 # frame20
 # 2.according each frame, generate frames with更小的分辨率
@@ -27,86 +25,86 @@ import numpy as np
 # 关键帧提取以提高处理速度
 # 声音？
 
-vedio1 = cv2.VideoCapture("test1.mp4")
-vedio2 = cv2.VideoCapture("test2.mp4")
+video1 = cv2.VideoCapture("1.mp4")
+video2 = cv2.VideoCapture("2.mp4")
 
-t1 = 7 # unit: second
-overallcontrol = 3
+t1 = 5.8 # unit: second
+overallcontrol = 5
 
-fps_Origin = vedio1.get(cv2.CAP_PROP_FPS) # 原视频的帧率
+fps_Origin = video1.get(cv2.CAP_PROP_FPS) # 原视频的帧率
 fps = fps_Origin # 需要保存视频的帧率
-# size_Origin = (vedio1.get(cv2.CAP_PROP_FRAME_WIDTH), vedio1.get(cv2.CAP_PROP_FRAME_HEIGHT)) # 原视频的大小
-# size = size_Origin # 需要保存视频的大小
-
-width = vedio1.get(cv2.CAP_PROP_FRAME_WIDTH)# overallcontrol
-height = vedio1.get(cv2.CAP_PROP_FRAME_HEIGHT)# overallcontrol
-videoWriter =cv2.VideoWriter('videoOut.avi', cv2.VideoWriter_fourcc('X','V','I','D'), fps, (int(width), int(height)))
-
+# 低分辨率图像的长和宽
+width_origin = int(video1.get(cv2.CAP_PROP_FRAME_WIDTH))
+width = width_origin//overallcontrol
+height_origin = int(video1.get(cv2.CAP_PROP_FRAME_HEIGHT))
+height = height_origin//overallcontrol
 
 
-num1 = int(t1 * fps)
-num2 = int(vedio1.get(cv2.CAP_PROP_FRAME_COUNT))
-deltanum = num2 - num1 + 1
+# 各个时间节点对应的帧数
+num1 = int(t1 * fps) # t1
+num2 = int(video1.get(cv2.CAP_PROP_FRAME_COUNT)) # t2
+deltanum = num2 - num1 - 1 # delta t
 
-vedio1.set(cv2.CAP_PROP_POS_FRAMES, num1)
-vedio2.set(cv2.CAP_PROP_POS_FRAMES, 0)
+# 设置视频读取位置
+video1.set(cv2.CAP_PROP_POS_FRAMES, num1)
+video2.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
 imgs10 = []
 imgs20 = []
 imgs1 = []
 imgs2 = []
 
-for i in range(0,deltanum-1):
-    _, frame = vedio1.read()
-    imgs10.append(frame)
-    _, frame = vedio2.read()
-    imgs20.append(frame)
-    
-    imgs1.append(cv2.resize(imgs10[i], (width, height)))
-    imgs2.append(cv2.resize(imgs20[i], (width, height)))
-    # videoWriter.write(frame)
+# 读取视频各帧
+for i in range(deltanum):
+  _, frame = video1.read()
+  imgs10.append(frame)
+  _, frame = video2.read()
+  imgs20.append(frame)
+  
+  imgs1.append(cv2.resize(imgs10[i], (int(width), int(height))))
+  imgs2.append(cv2.resize(imgs20[i], (int(width), int(height))))
     
 def generateHMatrix(imgs1, imgs2):
-    H_Arrey = []
-    for i in range(0, len(imgs1)):
-        img1 = imgs1[i]
-        img2 = imgs2[i]
-        img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-        img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-        # Create our ORB detector and detect keypoints and descriptors
-        orb = cv2.ORB_create(nfeatures=2000)
-        # Find the key points and descriptors with ORB
-        keypoints1, descriptors1 = orb.detectAndCompute(img1, None)
-        keypoints2, descriptors2 = orb.detectAndCompute(img2, None)
-        # Create a BFMatcher object.
-        # It will find all of the matching keypoints on two images
-        bf = cv2.BFMatcher_create(cv2.NORM_HAMMING)
-        # Find matching points
-        matches = bf.knnMatch(descriptors1, descriptors2,k=2)
-        all_matches = []
-        for m, n in matches:
-            all_matches.append(m)
-        # Finding the best matches
-        good = []
-        for m, n in matches:
-            if m.distance < 0.6 * n.distance:
-                good.append(m)
+  H_Arrey = []
+  for i in range(len(imgs1)):
+    img1 = imgs1[i]
+    img2 = imgs2[i]
+    img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+    # Create our ORB detector and detect keypoints and descriptors
+    orb = cv2.ORB_create(nfeatures=2000)
+    # Find the key points and descriptors with ORB
+    keypoints1, descriptors1 = orb.detectAndCompute(img1, None)
+    keypoints2, descriptors2 = orb.detectAndCompute(img2, None)
+    # Create a BFMatcher object.
+    # It will find all of the matching keypoints on two images
+    bf = cv2.BFMatcher_create(cv2.NORM_HAMMING)
+    # Find matching points
+    matches = bf.knnMatch(descriptors1, descriptors2,k=2)
+    all_matches = []
+    for m, n in matches:
+      all_matches.append(m)
+    # Finding the best matches
+    good = []
+    for m, n in matches:
+      if m.distance < 0.6 * n.distance:
+        good.append(m)
 
-            # Set minimum match condition
-            MIN_MATCH_COUNT = 5
+    # Set minimum match condition
+    MIN_MATCH_COUNT = 5
 
-            if len(good) > MIN_MATCH_COUNT:
-                # Convert keypoints to an argument for findHomography
-                src_pts = np.float32([ keypoints1[m.queryIdx].pt for m in good]).reshape(-1,1,2)
-                dst_pts = np.float32([ keypoints2[m.trainIdx].pt for m in good]).reshape(-1,1,2)
+    if len(good) > MIN_MATCH_COUNT:
+      # Convert keypoints to an argument for findHomography
+      src_pts = np.float32([ keypoints1[m.queryIdx].pt for m in good]).reshape(-1,1,2)
+      dst_pts = np.float32([ keypoints2[m.trainIdx].pt for m in good]).reshape(-1,1,2)
 
-                # Establish a homography
-                M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-                H_Arrey.append(M)
-    return H_Arrey
+      # Establish a homography
+      M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+      H_Arrey.append(M)
+  return H_Arrey
 
 def smoothHMatrix(HMatrixArrey):
-    return HMatrixArrey
+  return HMatrixArrey
 
 def warpImages(img1, img2, H, a):
 
@@ -164,7 +162,6 @@ def polygon_overlap(shape, poly1, poly2):
   return overlap_mask
 
 def process_output_image(output_img, output_img2, poly1, poly2, a):
-#   output = np.zeros_like(output_img)
   overlap = polygon_overlap(output_img.shape, poly1, poly2)
   output = output_img + output_img2
   weight_sum = a * output_img + (1 - a) * output_img2
@@ -172,38 +169,81 @@ def process_output_image(output_img, output_img2, poly1, poly2, a):
   return output
 
 def getCenters(H_arrey):
-    return H_arrey, H_arrey
-    
+  length = len(H_arrey)
+  a = 0
+  centers = []
+  output_heights = []
+  for i in range(length):
+    H = H_arrey[i]
+    a = i/length
+    I = np.float32([[1,0,0],[0,1,0],[0,0,1]])
+    A1 = I + a * ( np.linalg.inv(H) - I )
+    A2 = H + a * ( I - H )
+    temp_point = np.float32([[[width/2, height/2]]])
+    center1 = cv2.perspectiveTransform(temp_point, A1)
+    center2 = cv2.perspectiveTransform(temp_point, A2)
+    center = a*center1+(1-a)*center2
+    centers.append(center)
+    mask1 = np.ones((int(height), int(width), 3), dtype=np.uint8) * 255
+    mask2 = mask1
+    mask0 = warpImages(mask1, mask2, H, a)
+    _, mask = cv2.threshold(mask0, 127, 255, cv2.THRESH_BINARY)
+    mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+    output_height=2
+    while 1: 
+      output_height = output_height + 2
+      temp = cutimg(mask, np.squeeze(centers[i]), output_height)
+      if np.min(temp) == 0:
+        break
+    output_heights.append(output_height)
+  return centers, output_heights
+  
+def cutimg(inputimg, center0, height0):
+  width0 = height0 / height * width
+  return inputimg[int(center0[1]-height0/2) : int(center0[1]+height0/2), 
+                  int(center0[0]-width0/2) : int(center0[0]+width0/2)]
+
+def smoothHeights(heights):
+  return heights
+
 H_arrey0 = generateHMatrix(imgs1, imgs2)
+
 H_arrey_final = smoothHMatrix(H_arrey0)
 
 centers = []
-zooms = []
-centers, zooms = getCenters(H_arrey_final)
+new_heights = []
+centers, new_heights = getCenters(H_arrey_final)
+
+# 需要处理一下new_heights以平滑过渡
+final_heights = smoothHeights(new_heights)
 
 outputimgs = []
-for i in range(0, deltanum):
-    img1 = imgs10[i]
-    img2 = imgs20[i]
-    outputimgs.append(warpImages(img1, img2, H_arrey_final[i], i/deltanum))
+for i in range(deltanum):
+  img1 = imgs10[i]
+  img2 = imgs20[i]
+  temp = warpImages(img1, img2, H_arrey_final[i], i/deltanum)
+  if i < 10:
+    cv2.imwrite("temp/temp_{}.jpg".format(i), temp)
+  outputimgs.append(cutimg(temp, np.squeeze(centers[i]),final_heights[i]))
 
 # final step: write to file
-vedio1.set(cv2.CAP_PROP_POS_FRAMES, 0)
-for i in range(0, num1):
-    _, frame = vedio1.read()
+videoWriter =cv2.VideoWriter('videoOut.avi', cv2.VideoWriter_fourcc('X','V','I','D'), fps, (int(width_origin), int(height_origin)))
+video1.set(cv2.CAP_PROP_POS_FRAMES, 0)
+for i in range(num1):
+  _, frame = video1.read()
+  videoWriter.write(frame)
+for i in range(deltanum):
+  frame = cv2.resize(outputimgs[i],(width_origin, height_origin))
+  videoWriter.write(frame)
+video2.set(cv2.CAP_PROP_POS_FRAMES, deltanum)
+while(1):
+  test, frame = video2.read()
+  if(test):
     videoWriter.write(frame)
-for i in range(0, deltanum):
-    frame = outputimgs[i]
-    videoWriter.write(frame)
-vedio2.set(cv2.CAP_PROP_POS_FRAMES, deltanum)
-for i in range(0, num1):
-    test, frame = vedio2.read()
-    if(test):
-        videoWriter.write(frame)
-    else:
-        break
+  else:
+    break
 
 
-vedio1.release()
-vedio2.release()
+video1.release()
+video2.release()
 videoWriter.release()
